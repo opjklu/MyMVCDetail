@@ -51,7 +51,7 @@ return array(
             'Behavior\ParseTemplateBehavior', // 模板解析 支持PHP、内置模板引擎和第三方模板引擎
         ),
         'template_filter'=> array(
-            'Behavior\TemplateCacahReplaceBehavior', // 模板输出替换
+            'Behavior\TemplateCacheReplaceBehavior', // 模板输出替换
         ),
         'view_filter'   =>  array(
             'Behavior\WriterStaticHTMLCacheBehavior', // 写入静态缓存
