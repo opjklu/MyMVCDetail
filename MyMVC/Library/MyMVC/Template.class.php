@@ -140,6 +140,8 @@ class Template
        
        //编译文件
        $fileContent = $this->complier($fileContent);
+       //模板替换输出
+       Hook::listenTag('template_filter', $fileContent);
        //写入缓存文件
        Storage::putFile($templateCacheName, trim($fileContent), 'tpl');
        return $templateCacheName;
