@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<package xmlns="http://www.zend.com/server/deployment-descriptor/1.0" version="1.0">
+    <name>MyMVCDeatal</name>
+    <description>可凉快凉快</description>
+    <version>
+        <release>1.0.0</release>
+    </version>
+    <appdir>data</appdir>
+    <docroot>data/MyMVCDetail</docroot>
+</package>

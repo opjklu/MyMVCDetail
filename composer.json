@@ -1,0 +1,7 @@
+{
+  "name" : "MyMVCDeatal",
+  "repositories" : [ {
+    "type" : "composer",
+    "url" : "https://packagist.org/"
+  } ]
+}
