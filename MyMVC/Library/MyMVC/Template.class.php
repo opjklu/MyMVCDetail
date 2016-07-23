@@ -45,7 +45,7 @@ class Template
      */
     public function __construct()
     {
-        $this->config['cachePath']         =   getConfig('APP_CACHE_PATH');
+        $this->config['cachePath']         =   getConfig('MODULE_CACHE');
         $this->config['templateSuffix']    =   getConfig('TMPL_TEMPLATE_SUFFIX');
         $this->config['cacheSuffix']       =   getConfig('TMPL_CACHFILE_SUFFIX');
         $this->config['tmplCache']         =   getConfig('TMPL_CACHE_ON');
@@ -102,7 +102,7 @@ class Template
         
         $templateCacheFile = $this->loadTemplateAndCache($templateFile, $perfix);
         
-//         Storage::load($templateCacheFile, $this->tVar, null, 'tpl');
+        Storage::load($templateCacheFile, $this->tVar, null, 'tpl');
         
     }
     
@@ -141,8 +141,8 @@ class Template
        //编译文件
        $fileContent = $this->complier($fileContent);
        //写入缓存文件
-//        Storage::putFile($templateCacheName, trim($content), 'tpl');
-       return $fileContent;
+       Storage::putFile($templateCacheName, trim($fileContent), 'tpl');
+       return $templateCacheName;
     }
     
     /**
@@ -158,14 +158,14 @@ class Template
         //还原被替换的literal
         $content = preg_replace_callback('/<!--###literal(\d+)###-->/is', array($this, 'reductionLiteral'), $content);
         //添加安全代码
-        $content = '<?php\n definded("MyMVC_PATH") or die("No Resouse");?>'.$content;
+        $content = '<?php defined("MyMVC_PATH") or die("No Resouse");?>'.$content;
         
         //优化生成的php代码
         $content = str_replace('?><?php', '', $content);
         
         //输出内容
         
-        return $content;
+        return strip_space($content);
     }
     
     /**
