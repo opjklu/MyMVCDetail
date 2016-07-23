@@ -59,14 +59,15 @@ if (function_exists("setAutoLoader")){
 }
 
 define("IS_WINDOW", strstr(PHP_OS, "WIN") ? true : false);
-define("IS_CGI", substr(PHP_SAPI, 0 , -3) ? true : false);
+define("IS_CGI", substr(PHP_SAPI, 0 , 3) == 'cgi' ? true : false);
 define("IS_CLI", PHP_SAPI == "cli" ? true : false);
+
 //CGI（通用网关接口 / Common Gateway Interface）
 //CLI（命令行运行 / Command Line Interface）
 //判断是否是命令行模式
 if (!IS_CLI){
     //当前文件名
-    if (defined("_PHP_FILE_")){
+    if (!defined("_PHP_FILE_")){
         if (IS_CGI){
             //例如 http://www.baidu.com/index.php/ PHP_SELF => index.php
            $tmp = explode(".php" , $_SERVER["PHP_SELF"]);//$_SERVER['PHP_SELF'] 表示当前 php 文件相对于网站根目录的位置地址，与 document root 相关。
@@ -76,9 +77,8 @@ if (!IS_CLI){
             define("_PHP_FILE_", rtrim($_SERVER["SCRIPT_NAME"]));
         }
     }
-    
     //当前网站地址
-    if (defined("__ROOT__")){
+    if (!defined("__ROOT__")){
         $root = rtrim(_PHP_FILE_ , "/");
         define("__ROOT__", ($root == "/" || $root=="\\") ? "" : $root );
     }
