@@ -186,9 +186,37 @@ class Template
         //解析php语法
         $content = $this->parsePHP($content);
         
+        //解析模板标签
+        
+        //step 1: 是否加载了标签库 以后做
+        //是否检测标签库
+        if (getConfig('TAGLIB_LOAD'))
+        {
+            $this->getIncludeTagLib();
+        }
+        
+        // step 2:额外加载的标签库 以后完善 
+        
+        // step 3:系统自动加载得标签库
+        if ($tags = getConfig('TAGLIB_BUILD_IN'))
+        {
+            //解析模板标签
+            foreach (explode(',', $tags) as $value)
+            {
+                
+            }
+        }
+        
         return $content;
     }
-    
+    /**
+     * 解析标签库 
+     * @return void 
+     */
+    protected function getIncludeTagLib()
+    {
+        //以后完善
+    }
     /**
      * 解析include 语法 
      * @param string  $content 模板内容
