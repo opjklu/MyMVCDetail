@@ -89,7 +89,10 @@ class Hook
      */
     public static function exec($name , $tag , $param)
     {
-        substr($name, 0 , 8) === "Behavior" ? $tag = "run": false;
+        $tag = substr($name, 0 , 8) === "Behavior" ?  "run": false;
+        if (!$tag) {
+            return null;
+        }
         $obj = new $name();
         return $obj->$tag($param);
     }
