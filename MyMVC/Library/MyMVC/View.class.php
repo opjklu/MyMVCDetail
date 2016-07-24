@@ -21,9 +21,9 @@ class  View
      */
     public function assgin($name , $value)
     {
-        if (is_array($value))
+        if (is_array($name))
         {
-            $this->tVar = array_merge($this->tVar , $value);
+            $this->tVar = array_merge($this->tVar , $name);
         }
         else 
         {
@@ -41,7 +41,7 @@ class  View
             return $this->tVar;
         }
         else
-        {            
+        {  
             return $this->tVar[$name];
         }
     }
