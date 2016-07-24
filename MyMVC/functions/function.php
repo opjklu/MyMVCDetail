@@ -343,7 +343,33 @@ function showData($data , $isDie = false)
         }
      }
  }
- 
+ /**
+  * 赋默认值
+  * @param array  $array     要设置的数组
+  * @param array  $setKey    要设置的键
+  * @param mixed  $default   默认值
+  * @param string $isDiffKey 特殊的键
+  * @return array
+  */
+ function isSetDefaultValue(array &$array, array $setKey, $default = null, $isDiffKey = 'page')
+ {
+     if (empty($setKey))
+     {
+         return null;
+     }
+     foreach ($setKey as $value)
+     {
+         if (!array_key_exists($value, $array) && $value != $isDiffKey)
+         {
+             $array[$value] = $default;
+         }
+         elseif (!isset($array[$value]))
+         {
+             $array[$value] = 1;
+         }
+     }
+     return $array;
+ }
 /**
  * 获取模版文件 格式 资源://模块@主题/控制器/操作
  * @param string $name 模版资源地址
