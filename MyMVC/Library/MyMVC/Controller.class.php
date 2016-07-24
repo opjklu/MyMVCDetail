@@ -65,7 +65,6 @@ abstract class Controller
     public function  __call($methods , $args)
     {
         //比较方法名是否相等
-       
         if (0 === strcasecmp($methods, __ACTION__.getConfig('ACTION_SUFFIX')) && method_exists($this, '_empty'))
         {
             $this->_empty($args);
@@ -84,8 +83,27 @@ abstract class Controller
             getError(__CLASS__.':'.$methods.getLanage('_METHOD_NOT_EXIST_'));
             return ;
         }
-        
     }
+    /**
+     * 模板变量 赋值 
+     */
+    public function assign($name, $value)
+    {
+        $this->view->assgin($name, $value);
+    }
+    /**
+     * 魔术方法 
+     */
+    public function __set($name, $value)
+    {
+        $this->assign($name, $value);
+    }
+    
+    public function __get($name)
+    {
+        $this->view->getValue($name);
+    }
+    
     /**
      *析构 
      */
