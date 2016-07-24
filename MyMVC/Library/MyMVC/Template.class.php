@@ -1,5 +1,6 @@
 <?php
 namespace MyMVC;
+use MyMVC\Template\TagLib;
 /**
  *模板解析类
  *@author 王强
@@ -95,15 +96,11 @@ class Template
      */
     public function parseTemplateFile($templateFile , $templateVar = NULL, $perfix = null)
     {
-        
         $this->tVar = $templateVar;
-        
         //读取编译后的文件
-        
         $templateCacheFile = $this->loadTemplateAndCache($templateFile, $perfix);
-        
+       
         Storage::load($templateCacheFile, $this->tVar, null, 'tpl');
-        
     }
     
     /**
@@ -203,7 +200,7 @@ class Template
             //解析模板标签
             foreach (explode(',', $tags) as $value)
             {
-                
+                $this->parseTag($content, $value, true);
             }
         }
         
@@ -216,6 +213,83 @@ class Template
     protected function getIncludeTagLib()
     {
         //以后完善
+    }
+    /**
+     * 解析标签
+     * @param  string $content      模板内容
+     * @param  string $tag          模板标签库
+     * @param  bool   $isHidePerfix 是否隐藏前缀
+     * @return string
+     */
+    protected function parseTag(& $content, $tagLib, $isHidePerfix = false)
+    {
+        //标签 开始、结束
+        $start = $this->config['taglibBegin'];
+        $end   = $this->config['taglibEnd'];
+        //支持命名空间
+        if (strpos($tagLib, '\\'))
+        {
+            //mymvc\\Template\\Taglib
+            //$name = substr($tagLib, $start);
+            $className = $tagLib;
+        }
+        else 
+        {
+            $className = 'MyMVC\\Template\\TagLib\\'.ucwords($tagLib);
+        }
+        static  $tagLibObj = null;
+        if ($tagLibObj === null)
+            $tagLibObj = MyMVC::getIntrance($className);
+        $that = $this;
+        foreach ($tagLibObj->getTags() as $tag => $attr)
+        {
+            $tag = !$isHidePerfix ? $tagLib.':'.$tag : $tag;
+            
+            $regexAttr = empty($attr['attr']) ? '(\s*?)' : '\s([^'.$end.']*)';
+            //正则查找是否存在标签
+            $regexAll = $attr['close'] === 1 ? 
+                '/'.$start.$tag.$regexAttr.$end.'(.*?)'.$start.'\/'.$tag.'(\s*?)'.$end.'/is'
+                : 
+                '/'.$start.$tag.$regexAttr.'\/(\s*?)'.$end.'/is';
+            $find = preg_match_all($regexAll, $content, $matchs);
+            $this->tagLib = array($tagLib, $tag);
+            if ($find)
+            {
+                if ($attr['close'])
+                {
+                    for ($i = 0; $i < $attr['level']; $i++)
+                    {
+                        $content = preg_replace_callback($regexAll, function ($matchs)use($tag, $tagLibObj, $that){
+                            return $that->parseXmlTags($tag, $tagLibObj, $matchs[2], $matchs[1]);
+                        }, $content);
+                    }
+                }
+                else 
+                {
+                    $content = preg_replace_callback($regexAll, function ($matchs)use($tag, $tagLibObj, $that){
+                        return $that->parseXmlTags($tag, $tagLibObj, $matchs[2], $matchs[1]);
+                    }, $content);
+                }
+            }
+        }
+    }
+    /**
+     * 解析模板页面xml标签
+     * @param string $tag     要解析的标签
+     * @param TagLib $tagLib  标签解析对象
+     * @param string $content 模板内容
+     * @param string $attr    标签属性
+     * @param string $perfix  解析方法前缀
+     * @return string;
+     */
+    public function parseXmlTags($tag, TagLib $tagLib, $content, $attr, $perfix = 'wq_')
+    {
+        if (ini_get('magic_quotes_sybase'))
+            $attr = str_replace('\"', '\'', $attr);
+        $content   = trim($content);
+        $tag       = $perfix.$tag;
+        $parseAttr = $tagLib->parseXmlAttr($tag, $attr);
+        return $tagLib->$tag($tag, $content);
     }
     /**
      * 解析include 语法 
