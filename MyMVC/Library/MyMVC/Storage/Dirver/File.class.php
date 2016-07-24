@@ -72,7 +72,7 @@ class File extends Storage
      */
     public function load($fileName , $var = null, $type=null) 
     {
-        is_null($var) ? false : extract($var ,0);
+        is_null($var) ? false : extract($var ,EXTR_OVERWRITE);
         !$this->contents[$fileName] ? getError(getLanage('_FILE_NOT_EXITS').":".$fileName) : include $fileName;   
     }
     /**
