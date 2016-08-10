@@ -36,7 +36,7 @@ class Common
         static $init = null;
         if (!is_object($init))
         {
-            $init = new self($methods);
+            $init = new self($class_name, $methods);
             return $init;
         }
         else 

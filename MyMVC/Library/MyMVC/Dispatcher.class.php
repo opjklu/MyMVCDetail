@@ -6,6 +6,7 @@ namespace MyMVC;
  */
 class Dispatcher
 {
+    private static $filePath = array();
     /**
      * 检测url
      */
@@ -70,10 +71,34 @@ class Dispatcher
             }
         }
         Hook::listenTag("module_check");
-        is_file(APP_PATH.__MODULE__.'/Common/function.php') ? (include APP_PATH.__MODULE__.'/Common/function.php' ): false;
-        is_file(APP_PATH.__MODULE__.'/Config/config.php') ? getConfig(include APP_PATH.__MODULE__.'/Common/config.php') : false;
+        is_file(APP_PATH.__MODULE__.'/Common/function.php') ? (include_once  APP_PATH.__MODULE__.'/Common/function.php' ): false;
+        is_file(APP_PATH.__MODULE__.'/Config/config.php') ? getConfig(include_once APP_PATH.__MODULE__.'/Config/config.php') : false;
         getConfig('MODULE_CACHE' , APP_CACHE_PATH.__MODULE__.'/');//模板缓存路径
-        
+        self::loadFileSystem(APP_COMMON_PATH);
         return true;
+    }
+    /**
+     * 遍历文件目录 
+     */
+    private static function loadFileSystem($path, $file = null)
+    {
+        if (!empty(self::$filePath[$path][$file]))
+        {
+            return ;
+        }
+        $mydir = dir($path);
+        while($file = $mydir->read())
+        {
+            if((is_dir($path.'/'.$file)) AND ($file!=".") AND ($file!="..") && in_array($file, array('Common', 'Config')))
+            {
+                self::loadFileSystem($path.'/'.$file, $file);
+            }
+            elseif (is_file($path.'/'.$file) && strrchr($file, '.') === '.php')
+            {
+                self::$filePath[$path][$file] = $file;
+                include_once $path.'/'.$file;
+            }
+        }
+        $mydir->close();
     }
 }

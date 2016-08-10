@@ -1,5 +1,3 @@
-
-
 <extend name='Library/extend'/>
 
 <block name='space'>
@@ -11,6 +9,34 @@ kjkljakljkl
 <block name='add'>
 	
 546546hkjh
+
+<div style="width: 200px; height: 160px; background-color: rgb(144,255,144);position: absolute;">
+
+<php>
+foreach($a as $key)
+{
+	echo $key;
+}
+</php>
+
+{$b|test:$c,$d}
+
+{$b.a.xxx}
+	<div style='position: relative;left: 10px; height: 50px; background-color: rgb(145,255,130);'>
+		
+		<volist name='$b.a' key='key' id='value'>
+			<if condition='$value gt 1'>
+				{$value}
+			<elseif condition='$value gt 6'/>
+				6
+			<else/>
+				{$key}
+			</if>
+		</volist>
+	
+	</div>
+</div>
+
 
 </block>
 

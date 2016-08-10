@@ -120,7 +120,7 @@ class MyMVC
      * 捕获致命错误
      */
     public static function fetalError()
-    {
+    { 
         /**
          *Array
          *(
@@ -131,7 +131,7 @@ class MyMVC
         ) 
          */
         //保存日志--以后做好吧
-        !error_get_last() ? $error= error_get_last() :$error=null;
+        $error = error_get_last();
         if (is_null($error))return ;
         switch ($error["type"])
         {
@@ -151,6 +151,7 @@ class MyMVC
      */
     private static function printError($error)
     {
+       
         $e = array();
         if (APP_DEBUG || IS_CLI){ //是否开启了调试模式 命令行格式
             /**

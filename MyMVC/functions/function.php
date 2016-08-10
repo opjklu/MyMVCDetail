@@ -414,3 +414,48 @@ function showData($data , $isDie = false)
      }
      return $baseUrl.($theme?$theme.'/':'').$file.getConfig('TMPL_TEMPLATE_SUFFIX');
  }
+ /**
+  * 多维数组处理 
+  */
+ function parseArray(array $array, $isSaveKey = false)
+ {
+     if (empty($array))
+     {
+         getError('为何要传递空数组');
+     }
+     static  $data = null;
+     
+     foreach ($array as $key => $value) 
+     {
+         if (is_array($value))
+         {
+             parseArray($value);
+         }
+         else if ($isSaveKey === false)
+         {
+             $data[] = $value;
+         }
+         else 
+         {
+             $data[$key] = $value;
+         }
+     }
+     return $data;
+ }
+ 
+ /**
+  * 生成唯一标示符 
+  */
+ function create_guid() 
+ {
+     $charid = strtoupper(md5(uniqid(mt_rand(), true)));
+     $hyphen = chr(45);// "-"
+     $uuid = chr(123)// "{"
+     .substr($charid, 0, 8).$hyphen
+     .substr($charid, 8, 4).$hyphen
+     .substr($charid,12, 4).$hyphen
+     .substr($charid,16, 4).$hyphen
+     .substr($charid,20,12)
+     .chr(125);// "}"
+     return $uuid;
+ }

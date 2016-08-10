@@ -42,6 +42,12 @@ class Template
     protected $tVar   = array();
     
     /**
+     * 再次解析 模板变量 
+     */
+    protected  $parseValue = array();
+    
+    protected $parseVar    = array();
+    /**
      *架构函数 
      */
     public function __construct()
@@ -203,7 +209,10 @@ class Template
                 $this->parseTag($content, $value, true);
             }
         }
+        //解析输出{$var.name}
+        $regx = '/('.$this->config['tmplBegin'].')'.'([^\d\s.'.$this->config['tmplBegin'].$this->config['tmplEnd'].'].+?)('.$this->config['tmplEnd'].')/is';
         
+        $content = preg_replace_callback($regx, array($this, 'parseTagItem'), $content);
         return $content;
     }
     /**
@@ -213,6 +222,218 @@ class Template
     protected function getIncludeTagLib()
     {
         //以后完善
+    }
+    
+    /**
+     * 解析模板标签 {TagName: args} 
+     *  Array
+        (
+            [0] => {$a.0}
+            [1] => {
+            [2] => $a.0
+            [3] => }
+        )
+     * @param string or array $tag 模板变量 $a.0|isDefaultValue:$b
+     */
+    protected function parseTagItem($tag)
+    {
+        $tag  = is_array($tag) ? $tag[2] : $tag;
+       
+        //过滤数字打头的标签{}
+        if (preg_match('/^[\d|\s]/', $tag))
+        {
+            getError('不能以数字或空格开头'.':'.$tag);
+        }
+        $name = substr($tag, 1); 
+        $flagF= substr($tag, 0, 1);
+        if (false !== strpos($tag, '$') && ($flag=substr($tag, 1, 1)) !='.')
+        { 
+            //{$varname}
+            return $this->parseVar($tag);
+        }
+        else if ($flagF == '+')
+        {
+            return '<?php '.$flag.$name.';?>';
+        }
+        else if (':' == $flagF)
+        {
+            return '<?php echo'.$name.'?>';
+        }
+        elseif ('~' == $flagF)
+        {
+            return '<?php '.$name.'?>';
+        }
+        else 
+        {
+            return null;
+        }
+    }
+    /**
+     * 解析变量 支持函数调用
+     * 格式：{$a.b|func:$a,$c}
+     * @param  
+     */
+    protected function parseVar($tag)
+    {
+        //$a.0|isDefaultValue:$b
+        $string = $echo = null;
+        if (strpos($tag, '.') && false === strpos($tag, '|'))
+        {
+            $tag   = str_replace('$', '', $tag);
+            $array = explode('.', $tag);
+          
+            $masterParam = array_shift($array); 
+            $str = null;
+            foreach ($array as $key => $value)
+            {
+                $masterParam .= '["'.$value.'"]';
+            }
+            $echo = '<?php echo isset( $'.$masterParam.') ? '.'$'.$masterParam.': null; ?>';
+        }
+        if (strpos($tag, '|'))
+        {
+            //调用解析函数
+            $string =  $this->parseFunctionVar($tag);
+        }
+        else if (strpos($tag, '.') === false && strpos($tag, '|') === false)
+        {
+            $echo = '<?php echo isset('.$tag.') ? '.$tag.': null; ?>';
+        }
+        return $echo.$string;
+    }
+    /**
+     * 解析函数表达式 
+     * @param string $tag 表达式
+     * @return 
+     */
+    protected function parseFunctionVar($tag, $splitTag = ':')
+    {
+        //$a.0|isDefaultValue:$b
+        $arrayTag = explode('|', $tag);
+        if (empty($arrayTag))
+        {
+            return $tag;
+        }
+        else 
+        { 
+            foreach ($arrayTag as $keyParam => &$valueFun)
+            {
+                if (false !== strpos($valueFun, '$'))
+                {
+                    $valueFun = str_replace('$', '', $valueFun);
+                }
+            }
+           
+            //取得第一个参数
+            $param = array_shift($arrayTag);
+            $forParse = array($param);
+            //是否还有其他参数
+            if (false !== strpos($arrayTag[0], $splitTag))
+            {
+                $otherParam = explode($splitTag, $arrayTag[0]);
+                $function = array_shift($otherParam);
+                if (isset($otherParam[0]))
+                {
+                    $forParse[] = explode(',', $otherParam[0]);
+                }
+                $this->parseArray($forParse);
+            }
+            else 
+            {
+                $function = $arrayTag[0];
+                $this->parseArray($forParse);
+            }
+            //取得模板禁用得函数
+            if (in_array($function, explode(',', getConfig('TMPL_DENY_FUNC_LIST'))))
+            {
+                getError('不允许使用该函数'.':'.$function);
+            }
+            $others = null;
+            foreach ($this->parseValue as $key => $value)
+            {
+                 $others .=  ','.$value.'';
+            }
+            return '<?php echo '.$function.'('.substr($others ,1).')'.';?>';
+        }
+    }
+    /**
+     * 解析数组变量 
+     * @param array $array 要解析得数组
+     * @return void;
+     * @author 王强
+     */
+    protected function parseArray(array $array)
+    {
+        $forParse    = parseArray($array);
+        $stringArray = null;
+        foreach ($forParse as $key => $value )
+        {
+            if (strpos($value, '.'))
+            {
+                $param = explode('.', $value);
+                //取得变量名
+                $master = array_shift($param);
+                foreach ($param as $arrayKey => $arrayValue)
+                {
+                    if (isset($this->tVar[$master][$arrayValue]))
+                    {
+                        $stringArray = $this->parseManyArray($this->tVar[$master]);
+                    }
+                }
+                $this->parseValue[$master] = 0===strpos($stringArray, 'array') ? $stringArray : 'array('.$stringArray.')';
+            }
+            if (isset($this->tVar[$value]))
+            {
+               
+                if (gettype($this->tVar[$value]) === 'array')
+                {
+                    $stringArray = $this->parseManyArray($this->tVar[$value]);
+                    
+                    $this->parseValue[$value] = 0===strpos($stringArray, 'array') ? $stringArray : 'array('.$stringArray.')';
+                }
+                else
+                {
+                    $this->parseValue[$value] = $this->tVar[$value];
+                }
+            }
+        }
+    }
+    /**
+     * 辅助 解析多维数组 
+     */
+    private function parseManyArray($value)
+    { 
+        $stringArray = null;
+        foreach ($value as $tKey => $tValue)
+        { 
+            if (is_array($tValue))
+            { 
+                foreach ($tValue as $key => $valueItem)
+                {
+                    if (is_array($valueItem))
+                    {
+                        showData($value);
+                        getError('模板内使用函数函数传参暂不支持三维数组');
+                    }
+                    else 
+                    {  
+                        $parseKey     = is_int($key) ?  $key : '"'.$key.'"';
+                        $parseVar     = is_string($valueItem) ? '"'.$valueItem.'"' : $valueItem;
+                        $string       = $parseKey.'=>'.$parseVar;
+                        $this->parseVar[$valueItem] = $string;
+                    }
+                }
+               ;
+                $stringArray.= ',"'.$tKey.'"'.'=>'.'array('.implode(',', $this->parseVar).')';
+            }
+            else 
+            {
+                $parseKey     = is_int($tKey) ?  $tKey : '"'.$tKey.'"';
+                $parseVar     = is_string($tValue) ? '"'.$tValue.'"' : $tValue;
+                $stringArray .= ','.$parseKey.'=>'.$parseVar;
+            }
+        }
+        return substr($stringArray, 1);
     }
     /**
      * 解析标签
@@ -287,9 +508,9 @@ class Template
         if (ini_get('magic_quotes_sybase'))
             $attr = str_replace('\"', '\'', $attr);
         $content   = trim($content);
-        $tag       = $perfix.$tag;
-        $parseAttr = $tagLib->parseXmlAttr($tag, $attr);
-        return $tagLib->$tag($tag, $content);
+        $tags       = $perfix.$tag;
+        $parseAttr = $tagLib->parseXmlAttr($tags, $attr);
+        return $tagLib->$tags($parseAttr, $content);
     }
     /**
      * 解析include 语法 
