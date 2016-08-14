@@ -39,6 +39,11 @@ class DataBase
     protected static $linkAll     = array();
     //最后插入的
     protected $lastInsertId = 0;
+    //当前操作模型
+    protected $model = NULL;
+    
+    //操作数据
+    protected static $dataArray = array();
     
     private function __construct($config = '')
     {
@@ -47,6 +52,7 @@ class DataBase
         if (!isset(self::$linkAll[$guid]))
         {
             self::$linkAll[$guid] = $this->factory($config);
+            $this->link =  self::$linkAll[$guid];
         }
         return self::$linkAll[$guid];
     }
@@ -141,6 +147,7 @@ class DataBase
                 );
             }
         }
+        $this->config = $db_config;
         return $db_config;
     }
     
@@ -256,5 +263,93 @@ class DataBase
         $this->close();
     }
     
-    // 关闭数据库 由驱动类定义
+    /**
+     * 获取表的所有字段 
+     */
+    public function getColum($table = null, $dbName = null, $perfix = 'Model')
+    {
+        $table  = $table  !== null ? $table  :  $this->model ;
+        $dbName = $dbName !== null ? $dbName : getConfig('DB_NAME');
+        if (!empty(self::$dataArray[$dbName][$table]))
+        {
+            return self::$dataArray[$dbName][$table];
+        }
+        else 
+        {
+            $link = $this->connect($this->config);
+            switch  ($obj = get_class($link))
+            {
+                case 'mysqli':
+                    $sql = 'select COLUMN_NAME,COLUMN_TYPE,COLUMN_KEY from information_schema.COLUMNS where table_name = ? and table_schema = ?;';
+                    break;
+                case 'pdo':
+                    $sql = 'select COLUMN_NAME from information_schema.COLUMNS where table_name = :table_name and table_schema = :table_schema;';
+                    break;
+            }
+            $data = $link->prepare($sql);
+            $i=0;
+            $dataArray = array();
+            switch  ($obj)
+            {
+                case 'mysqli':
+                    if ( $data->bind_param('ss', $table, $dbName) && $data->execute())
+                    {
+                        $data->store_result();
+                    
+                        $variables = array();
+                        $meta = $data->result_metadata();
+                    
+                        // 从这里开始就迷糊
+                        $variables = array();
+                        while($field = $meta->fetch_field())
+                            $variables[] = &$dataArray[$field->name]; // pass by reference
+                        call_user_func_array(array($data, 'bind_result'), $variables);
+                        while($data->fetch())
+                        {
+                            $array[$i] = array();
+                            foreach($dataArray as $k=>$v)
+                                $array[$i][$k] = $v;
+                            $i++;
+                        }
+                        self::$dataArray[$dbName][$table] = $array;
+                        return $array;
+                    }
+                    else
+                    {
+                        getError('查询出错了'.':'.$sql);
+                    }
+                    break;
+                case 'pdo':
+                    $data->execute(array(':table_name' => $table, ':table_schema' => $dbName));
+                    
+                    while ($row = $data->fetch(PDO::FETCH_ASSOC)) {
+                    }
+                    break;
+            }
+        }
+        return null;
+    }
+    /**
+     * 插入数据 
+     * @param array $data 要插入的数据
+     * @param mixed $options 条件
+     * @param bool  $replace 是否替换 数据
+     * @return bool | int
+     */
+    public function insert(array $data, $options = array(), $replace = false)
+    {
+        
+    }
+    /**
+     * 调用子类方法 
+     */
+    public  function __call($method , $args) 
+    {
+        return  method_exists($this->link, $method) ? call_user_func_array(array($this->link , $method), $args) :getError(getLanage('_METHOD_NOT_EXIST_').':'.$method);
+    }
+    
+    public function setModel($name)
+    {
+        $this->model = $name;
+    }
 }

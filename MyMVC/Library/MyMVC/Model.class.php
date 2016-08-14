@@ -93,6 +93,8 @@ class Model
             return '';
         }
         $this->db = $link[$linkNum];
+        //检测字段
+        !empty($this->fields) ? : $this->getFileds();
         return $this;
     }
     /**
@@ -102,7 +104,7 @@ class Model
     {
         if (empty($this->trueTableName)){
             $tablName  = empty($this->tablePrefix) ? null : $this->tablePrefix;
-            $tablName .= !empty($this->tableName) ? $this->tableName : null;
+            $tablName .= !empty($this->tableName) ? $this->tableName : str_replace('\\', '', strrchr($this->name, '\\'));
             $this->trueTableName = strtolower($tablName);
         }
         return (!empty($this->dbName) ? $this->dbName.'.':''). $this->trueTableName;
@@ -121,8 +123,169 @@ class Model
     //初始化
     public function init(){}
     /**
+     * 获取所有字段 
+     */
+    public function getFileds($dbName =null)
+    {
+        $this->db->setModel($this->name);
+        $fields     = $this->db->getColum($this->getAllTableName(), $dbName);
+        $dataArray  = array();
+        if (!empty($fields))
+        {
+            foreach ($fields as $key => $value)
+            {
+               $dataArray[$value['COLUMN_NAME']] = preg_replace('/\(.*\)/', '', $value['COLUMN_TYPE']).(empty($value['COLUMN_KEY']) ? null: ','.$value['COLUMN_KEY']);
+            }
+        }
+        
+        $this->fields = !empty($dataArray) ? $dataArray : null;
+        
+        //缓存操作
+        return $this->fields;
+    }
+    /**
      * 插入数据
      */
+    public function insert(array $data, $options = array(), $replace = false)
+    {
+        if (empty($data)) {
+            if (!empty($this->data)) {
+                $data = $this->data;
+                //重置数据
+                $this->data = array();
+            } else {
+                $this->error = getLanage('_DATA_TYPE_INVALID_');
+                return false;
+            }
+        }
+        //分析数据
+        $options = $this->parseCondition($options);
+        showData($options);
+        //数据处理
+        $data = $this->parseData($data);
+        showData($data);
+        if (false === $this->beforeInsert($data, $options)) {
+            return false;
+        }
+        //插入数据库
+        $insertId = $this->db->insert($data, $options, $replace);
+    }
+    // 插入数据前的回调方法
+    protected function beforeInsert(&$data,$options) {}
+    // 插入成功后的回调方法
+    protected function afterInsert($data,$options) {}
+    /**
+     * 数据处理 
+     * @param mixed $data 要处理的数据
+     * @return mixed；
+     */
+    protected function parseData(array $data = array())
+    {
+        if (!empty($this->fields))
+        {
+            if (!empty($this->options['fields'])) {
+                $fields = $this->options['fields'];
+                unset($this->options['fields']);
+                if (!is_array($fields)) getError('只能为数组'.':'.'$fields');
+            } else {
+                $fields = $this->fields;
+            }
+            // 类型检测
+            $this->parseDataType($data, $fields);
+        }
+        //安全过滤
+        if (isset($this->options['filter'])) {
+            $data = array_map($this->options['filter'], $data);
+            unset($this->options['filter']);
+        }
+        $this->beforeWrite($data);
+        return $data;
+    }
+    // 写入数据前的回调方法 包括新增和更新
+    protected function beforeWrite(&$data) {}
+    /**
+     * 分析表达式 
+     * @param mixed $options
+     * @access protected
+     * @return mixed;
+     */
+    protected function parseCondition($options = array())
+    {
+        $options = is_array($options) ? array_merge($this->options, $options) : $options;
+        
+        //自动获取表名
+        if (!isset($options['table'])) {
+            $options['table'] = $this->getAllTableName();
+            $fields = $this->fields;
+        } else {
+            $fields = $this->getFileds();
+        } 
+        //清空options 以免影响 sql 组装
+        $this->options = array();
+        
+        // 数据表别名
+        if(!empty($options['alias'])) {
+            $options['table']  .=   ' '.$options['alias'];
+        }
+        // 记录操作的模型名称
+        $options['model']       =   $this->name;
+        
+        // 字段类型验证
+        if(isset($options['where']) && is_array($options['where']) && !empty($fields) && !isset($options['join'])) {
+            // 对数组查询条件进行字段类型检查
+            $this->parseDataType($options['where']);
+        }
+        
+        // 表达式过滤
+        $this->optionsFilter($options);
+        return $options;
+    }
+    protected function optionsFilter($options = array()){}
+    /**
+     * 数据类型检测 
+     * @param array  $data      要检测得数据
+     * @access protected
+     * @return null or array
+     */
+    protected function parseDataType(array &$data, array $fields = null,$perfix = ':')
+    {
+        if (empty($data))
+            return null;
+        $fields = empty($fields) ? $this->fields : $fields;
+        foreach ($data as $key => &$value)
+        {
+            if (array_key_exists($key,$fields) || (0 === strpos($key, $perfix) && array_key_exists(substr($key, 1), $fields)))
+            {
+                switch ($flag = $fields[$key])
+                {
+                    case false !== strpos($flag, 'int'):
+                        $value = intval($value);
+                    break;
+                    case 'varchar':
+                        $value = (string)$value;
+                    break;
+                    case 'decimal':
+                        $value = floatval($value);
+                    break;
+                    case 'bool':
+                        $value = (bool)$value;
+                    break;
+                }
+            }
+            else 
+            {
+              unset($data[$key]);   
+            }
+        }
+    }
+    /**
+     * @param array $array
+     * @param array $not_key
+     * @param string $is_check_number
+     * @param string $is_validate_token
+     * @return NULL|unknown
+     * */
+    
     public function create(array $array = null, array $not_key = null, $is_check_number = FALSE, $is_validate_token = FALSE)
     {
         $data = empty($array) ? $_POST : $array;

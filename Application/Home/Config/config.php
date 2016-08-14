@@ -5,8 +5,8 @@ return array(
   'DB_HOST'  => 'localhost',
   'DB_NAME'  => 'linkguo',
   'DB_USER'  => 'root',
-  'DB_PWD'   => 'wasd123',
+  'DB_PWD'   => 'root',
   'DB_CHART' => 'UTF8',
   'DB_PORT'  => 3306,
-  'DB_PERFIX'=> 'yershop'
+  'DB_PERFIX'=> 'yershop_'
 );
