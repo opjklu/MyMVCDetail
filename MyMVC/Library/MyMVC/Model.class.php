@@ -160,10 +160,8 @@ class Model
         }
         //分析数据
         $options = $this->parseCondition($options);
-        showData($options);
         //数据处理
         $data = $this->parseData($data);
-        showData($data);
         if (false === $this->beforeInsert($data, $options)) {
             return false;
         }
@@ -241,6 +239,14 @@ class Model
         return $options;
     }
     protected function optionsFilter($options = array()){}
+    
+    /**
+     * 更新数据库操作
+     */
+    public function update(array $data, $options = array())
+    {
+        
+    }
     /**
      * 数据类型检测 
      * @param array  $data      要检测得数据
@@ -363,5 +369,37 @@ class Model
             return null;
         }
     }
+    /**
+     *获取全部子集分类
+     *@param integer $video_id 视频分类编号
+     */
+    public function get_children($video_id ,$tabale = 'video/term_taxonomy_model' , $key ="parent_id")
+    {
+        //         ini_set(‘memory_limit’,’288M’);
+        // 根据地区编号  查询  该地区的所有信息
+        $term_taxonomy_model = RC_Model::model($tabale);
+        $video_data   = $term_taxonomy_model->field('taxonomy_id')->where('parent_id="'.$video_id.'" and object_app="ecjia.video" and is_show=1')->select();
     
+        foreach ($video_data as $key => &$value)
+        {
+            if(!empty($value['taxonomy_id']))
+            {
+                $data .= ','. $value['taxonomy_id'];
+                $child = self::get_children($value['taxonomy_id']  , $tabale , $key);
+                if (!empty($child))
+                {
+                    foreach ($child as $key_value => $value_key)
+                    {
+                        if (!empty($value_key['taxonomy_id']))
+                        {
+                            $data.=','.$value_key['taxonomy_id'];
+                        }
+                    }
+                }
+                unset($value);
+                unset($child);
+            }
+        }
+        return !empty($data) ? substr($data , 1) : null;
+    }
 }

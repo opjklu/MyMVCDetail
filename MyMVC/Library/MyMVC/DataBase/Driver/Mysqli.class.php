@@ -22,15 +22,14 @@ class MySqli extends DataBase
     /**
      * 初始化连接 
      */
-    public function connect($config, $linkNum = 0)
+    public function connect($config = '', $linkNum = 0)
     {
         if (!isset(self::$linkAll[$linkNum])) {
             if (empty($config)) 
                 $config = $this->config;
-            try {
                 self::$linkAll[$linkNum] = new \mysqli($config['hostname'], $config['username'], $config['password'], $config['database'], is_numeric($config['hostport']) ? intval($config['hostport']) : 3306);
-            } catch (\ErrorException $e) {
-                getError(self::$linkAll[$linkNum]->error_list);
+            if (mysqli_connect_error()) {
+                getError(mysqli_connect_error());
             }
             //判断mysql 版本
             if (self::$linkAll[$linkNum]->server_version > '5.0.1')
@@ -42,5 +41,51 @@ class MySqli extends DataBase
             unset($this->config);
         }
         return self::$linkAll[$linkNum];
+    }
+    /**
+     * 执行sql 语句 
+     */
+    public function execute($sql, $bind = array())
+    {
+        $this->initConnect(true);
+        if (empty($this->link)) return false;
+        //释放前一次查询的结果集
+        $this->sql = $sql;
+        if (!empty($this->queryID)) //释放结果集
+        {
+            $this->free();
+        }
+        getMemory('executeStart');
+        $result = $this->link->query($sql);
+        $this->debug();
+        if ($result === false) {
+            //保存错误
+            return false;
+        } else {
+            $this->numRows = $this->link->affected_rows;
+            $this->lastInsertId = $this->link->insert_id;
+        }
+        return $this->numRows;
+    }
+    /**
+     * 释放结果集 
+     */
+    protected function free()
+    {
+        if (is_object($this->queryID)) {
+            $this->queryID->free_result();            
+        }
+        $this->queryID = null;
+    }
+    /**
+     * 数据库调试 
+     */
+    protected function debug()
+    {
+        if (getConfig('DB_SQL_LOG'))
+        {
+            getMemory('executeEnd');
+            getTrace($this->sql.'[RunTime:'.getMemory('executeStart', 'executeEnd', 6).'s]','SQL');
+        }
     }
 }

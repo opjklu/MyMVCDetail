@@ -8,7 +8,7 @@ class Build
     /**
      *创建文件 
      */
-    public function autoBuildFile()
+    public static  function autoBuildFile()
     {
         !is_dir(APP_PATH) ? mkdir(APP_PATH , 0755 , true) : false;
         if (is_writeable(APP_PATH)){
@@ -46,7 +46,7 @@ class Build
     /**
      *写入目录安全文件 
      */
-    protected  function writeFile($file = array())
+    protected static   function writeFile($file = array())
     {
         static $path ;
         if (!empty($path)){
@@ -72,7 +72,7 @@ class Build
     /**
      *写入Action调试代码 
      */
-    protected  function writeDebug($file)
+    protected static  function writeDebug($file)
     {
         !is_file($file)&& is_file(TPL_PATH."default_index.tpl") ? file_put_contents($file, file_get_contents(TPL_PATH."default_index.tpl")) : false;
     }

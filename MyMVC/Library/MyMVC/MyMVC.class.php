@@ -242,7 +242,7 @@ class MyMVC
      *自定义异常处理 
      *@param Error $exception object 异常对象
      */
-    public function  customException($exception)
+    public static function  customException($exception)
     {
         $error = array();
         $error['message'] = $exception->getMessage();

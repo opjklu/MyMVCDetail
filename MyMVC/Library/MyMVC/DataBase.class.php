@@ -40,7 +40,9 @@ class DataBase
     //最后插入的
     protected $lastInsertId = 0;
     //当前操作模型
-    protected $model = NULL;
+    protected $model     = NULL;
+    //是否连接
+    protected $connected = false;
     
     //操作数据
     protected static $dataArray = array();
@@ -196,10 +198,10 @@ class DataBase
     protected function initConnect($master=true) {
         if(1 == getConfig('DB_DEPLOY_TYPE'))
             // 采用分布式数据库
-            $this->_linkID = $this->multiConnect($master);
+            $this->link = $this->multiConnect($master);
         else
             // 默认单数据库
-            if ( !$this->connected ) $this->_linkID = $this->connect();
+            if ( !$this->connected ) $this->link = $this->connect();
     }
     
     /**
@@ -304,6 +306,7 @@ class DataBase
                         while($field = $meta->fetch_field())
                             $variables[] = &$dataArray[$field->name]; // pass by reference
                         call_user_func_array(array($data, 'bind_result'), $variables);
+                        $array = array();
                         while($data->fetch())
                         {
                             $array[$i] = array();
@@ -338,7 +341,119 @@ class DataBase
      */
     public function insert(array $data, $options = array(), $replace = false)
     {
-        
+        $fields = $array = array();
+        $this->model = $options['model'];
+        foreach ($data as $key => $value)
+        {
+            if (is_scalar($value) || is_null($value))
+            {
+                $fields[] = $key;
+                if (getConfig('DB_BIND_PARAM') && 0 !== strpos(':', $key)) {
+                    $colum = md5($key);
+                    $array[] = ':'.$colum;
+                    $this->bindParam($colum, $value);
+                } else {
+                   $array[] = $this->parseValue($value);
+                }
+            }
+        }
+       
+        $sql  = ($replace === false ? 'INSERT' : 'REPLACE').' INTO '.$this->parseTable($options['table']).' ('.implode(',', $fields).')'. 'VALUES('.implode(',', $array).')';
+        $sql .= $this->parseLock(isset($options['lock']) ? $options['lock'] : false);
+        $sql .= $this->parseComment(isset($options['comment'])? $options['comment'] : null);
+        return $this->execute($sql, $this->parseBind(!empty($options['bind']) ? $options['bind']:array()));
+    }
+    
+    /**
+     * 设置锁机制
+     * @access protected
+     * @return string
+     */
+    protected function parseLock($lock=false) {
+        if(!$lock) return '';
+        if('ORACLE' == $this->dbType) {
+            return ' FOR UPDATE NOWAIT ';
+        }
+        return ' FOR UPDATE ';
+    }
+    
+    /**
+     * 参数绑定分析
+     * @access protected
+     * @param array $bind
+     * @return array
+     */
+    protected function parseBind($bind){
+        $bind           =   array_merge($this->bind,$bind);
+        $this->bind     =   array();
+        return $bind;
+    }
+    
+    /**
+     * comment分析
+     * @access protected
+     * @param string $comment
+     * @return string
+     */
+    protected function parseComment($comment) 
+    {
+        return  !empty($comment)?   ' /* '.$comment.' */':'';
+    }
+    
+    /**
+     * 表明分析 
+     */
+    protected function parseTable($table)
+    {
+        $array = array();
+        if (is_array($table) && !empty($table)) //支持别名定义
+        {
+            foreach ($table as $key => $value)
+            {
+                if (!is_numeric($key))
+                    $array[] = $key.' ' .$value;
+                else 
+                    $array[] = $value;
+            }
+            $table = $array;
+        }
+        return $table;
+    }
+    /**
+     * 绑定参数 
+     */
+    protected function bindParam($cloum , $value)
+    {
+        $this->bind[':'.$cloum] = $value;
+    }
+    
+    /**
+     * 数据值分析 
+     */
+    protected function parseValue(&$data)
+    {
+        switch (gettype($data)) {
+            case 'string':
+                $data = '\''.addslashes($data).'\'';
+            break;
+            
+            case 'array':
+                $data = array_map(array($this, 'parseValue'), $data);
+            break;
+            
+            case 'bool':
+                $data = $data ? 1 : 0;
+            break;
+            
+            case 'null':
+                $data = null;
+            break;
+            case 'integer':
+                $data = intval($data);
+             break;
+            default: getError('未知类型'.':'.'$data');break;
+        }
+        return $data;
     }
     /**
      * 调用子类方法 
